@@ -1,4 +1,4 @@
 [wokwi]
 version = 1
-firmware = 'build/Teste_Voltimetro.uf2'
-elf = 'build/ADC_DisplayC.elf'
+firmware = 'build/Ohmimetro01.uf2'
+elf = 'build/Ohmimetro01.elf'

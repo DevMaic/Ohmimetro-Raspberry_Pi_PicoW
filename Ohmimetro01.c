@@ -39,6 +39,16 @@ const char* resistor_colors[] = {
   "Amarelo", "Verde", "Azul", "Violeta",
   "Cinza", "Branco"
 };
+typedef struct {
+  double r;
+  double g;
+  double b;
+} Pixel;
+
+Pixel resistorColors[10] = {
+  {0.0, 0.0, 0.0}, {0.07, 0.03, 0.015}, {1.0, 0.0, 0.0}, {1.0, 0.31, 0.0}, {1.0, 0.78, 0.0},
+  {0.0, 0.59, 0.0}, {0.0, 0.0, 0.78}, {0.63, 1.0, 1.0}, {0.39, 0.39, 0.39}, {0.0, 0.0, 0.0}
+};
 
 const double E24[] = {
   10, 11, 12, 13, 15, 16, 18, 20,
@@ -84,14 +94,9 @@ uint32_t matrix_rgb(double b, double r, double g)
   B = b * 255;
   return (G << 24) | (R << 16) | (B << 8);
 }
-typedef struct {
-  double r;
-  double g;
-  double b;
-} Pixel;
 
 Pixel desenho[25] = {
-  {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0},
+  {0.8, 0.3, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0},
   {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
   {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
   {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
@@ -99,7 +104,7 @@ Pixel desenho[25] = {
 };
 
 //rotina para acionar a matrix de leds - ws2812b
-void desenho_pio(Pixel *desenho, uint32_t valor_led, PIO pio, uint sm) {
+void desenho_pio(uint32_t valor_led, PIO pio, uint sm) {
   for (int16_t i = 0; i < NUM_PIXELS; i++) {
     valor_led = matrix_rgb(
       desenho[24-i].b,  // azul
@@ -115,15 +120,29 @@ void acende_led_unicor(int led_index, double r, double g, double b, uint32_t val
     if (i == led_index) {
       // Se for o LED que queremos, acende com as cores passadas
       valor_led = matrix_rgb(b, r, g);
-    } else {
-      // Os outros ficam apagados (0.0)
-      valor_led = matrix_rgb(0.0, 0.0, 0.0);
-    }
+    } 
+    // else {
+    //   // Os outros ficam apagados (0.0)
+    //   valor_led = matrix_rgb(0.0, 0.0, 0.0);
+    // }
     pio_sm_put_blocking(pio, sm, valor_led);
   }
 }
 
+void set_pixel_color(int led_index, double r, double g, double b) {
+    if (led_index >= 0 && led_index < NUM_PIXELS) {
+        desenho[led_index].r = r;
+        desenho[led_index].g = g;
+        desenho[led_index].b = b;
+    }
+}
+
 int main() {
+  for (int i = 0; i < NUM_PIXELS; i++) {
+    desenho[i].r = 0.0;
+    desenho[i].g = 0.0;
+    desenho[i].b = 0.0;
+  }
   uint32_t valor_led; // Variável para armazenar o valor do LED
   PIO pio = pio0;
   set_sys_clock_khz(128000, false);
@@ -131,9 +150,6 @@ int main() {
   uint offset = pio_add_program(pio, &pio_matrix_program);
   uint sm = pio_claim_unused_sm(pio, true);
   pio_matrix_program_init(pio, sm, offset, OUT_PIN);
-
-  // desenho_pio(desenho, valor_led, pio, sm);
-  acende_led_unicor(5, 1.0, 0.0, 0.0, valor_led, pio, sm); // Acende o primeiro LED com vermelho
 
   // Para ser utilizado o modo BOOTSEL com botão B
   gpio_init(botaoB);
@@ -182,13 +198,18 @@ int main() {
 
     // Fórmula simplificada: R_x = R_conhecido * ADC_encontrado /(ADC_RESOLUTION - adc_encontrado)
     R_x = (R_conhecido * media) / (ADC_RESOLUTION - media);
-
-    findNearestResistor(R_x); // Encontra o resistor mais próximo
+    double aux = R_x; // Armazena o valor de R_x para comparação
+    aux = findNearestResistor(aux); // Encontra o resistor mais próximo
     int magnitude; // Calcula a magnitude do resistor
-    for(magnitude=0;R_x>100; magnitude++) {
-      R_x = R_x / 10; // Divide por 10 até que o valor seja menor que 100
+    for(magnitude=0;aux>=100; magnitude++) {
+      aux = aux / 10; // Divide por 10 até que o valor seja menor que 100
     }
-    printf("%d %d\n", (int)R_x/10, ((int)R_x)%10);
+    printf("%d %d\n", (int)aux/10, ((int)aux)%10);
+
+    set_pixel_color(0, resistorColors[(int)aux/10].r, resistorColors[(int)aux/10].g, resistorColors[(int)aux/10].b);
+    set_pixel_color(1, resistorColors[(int)aux%10].r, resistorColors[(int)aux%10].g, resistorColors[(int)aux%10].b);
+    set_pixel_color(2, resistorColors[magnitude].r, resistorColors[magnitude].g, resistorColors[magnitude].b);
+    desenho_pio(valor_led, pio, sm);
 
     sprintf(str_x, "%1.0f", media); // Converte o inteiro em string
     sprintf(str_y, "%1.0f", R_x);   // Converte o float em string
@@ -197,17 +218,41 @@ int main() {
     //  Atualiza o conteúdo do display com animações
     ssd1306_fill(&ssd, !cor);                          // Limpa o display
     ssd1306_rect(&ssd, 3, 3, 122, 60, cor, !cor);      // Desenha um retângulo
-    ssd1306_line(&ssd, 3, 25, 123, 25, cor);           // Desenha uma linha
+    ssd1306_line(&ssd, 20, 7, 105, 7, cor);           // Desenha uma linha
+    ssd1306_line(&ssd, 20, 7, 20, 25, cor);          // Desenha uma linha
+    ssd1306_line(&ssd, 20, 25, 105, 25, cor);           // Desenha uma linha
+    ssd1306_line(&ssd, 105, 25, 105, 7, cor);           // Desenha uma linha
+    ssd1306_line(&ssd, 10, 16, 20, 16, cor);           // Desenha uma linha
+    ssd1306_line(&ssd, 105, 16, 115, 16, cor);           // Desenha uma linha
+    ssd1306_rect(&ssd, 7, 30, 10, 19, cor, cor);      // Desenha um retângulo
+    ssd1306_rect(&ssd, 7, 45, 10, 19, cor, cor);      // Desenha um retângulo
+    ssd1306_rect(&ssd, 7, 60, 10, 19, cor, cor);      // Desenha um retângulo
+    ssd1306_rect(&ssd, 7, 90, 10, 19, cor, cor);      // Desenha um retângulo
+
+    // ssd1306_draw_string(&ssd, "R", 33, 13); // Desenha uma string
+    // ssd1306_draw_string(&ssd, "G", 48, 13); // Desenha uma string
+    // ssd1306_draw_string(&ssd, "B", 63, 13); // Desenha uma string
+
     ssd1306_line(&ssd, 3, 37, 123, 37, cor);           // Desenha uma linha
-    ssd1306_draw_string(&ssd, "CEPEDI   TIC37", 8, 6); // Desenha uma string
-    ssd1306_draw_string(&ssd, "EMBARCATECH", 20, 16);  // Desenha uma string
-    ssd1306_draw_string(&ssd, "  Ohmimetro", 10, 28);  // Desenha uma string
+    ssd1306_draw_string(&ssd, "", 8, 6); // Desenha uma string
+    ssd1306_draw_string(&ssd, "", 20, 16);  // Desenha uma string
+    ssd1306_draw_string(&ssd, "  Ohmimetro", 10, 29);  // Desenha uma string
     ssd1306_draw_string(&ssd, "ADC", 13, 41);          // Desenha uma string
     ssd1306_draw_string(&ssd, "Resisten.", 50, 41);    // Desenha uma string
     ssd1306_line(&ssd, 44, 37, 44, 60, cor);           // Desenha uma linha vertical
     ssd1306_draw_string(&ssd, str_x, 8, 52);           // Desenha uma string
     ssd1306_draw_string(&ssd, str_y, 59, 52);          // Desenha uma string
     ssd1306_send_data(&ssd);                           // Atualiza o display
+    sleep_ms(700);
+
+    // Atualiza o conteúdo do display com cores do resistor lido
+    ssd1306_fill(&ssd, !cor);
+    ssd1306_draw_string(&ssd, "Resistor:", 8, 6);
+    ssd1306_draw_string(&ssd, resistor_colors[(int)aux/10], 8, 16);
+    ssd1306_draw_string(&ssd, resistor_colors[(int)aux%10], 8, 26);
+    ssd1306_draw_string(&ssd, resistor_colors[magnitude], 8, 36);
+    ssd1306_send_data(&ssd);
+
     sleep_ms(700);
   }
 }

@@ -64,13 +64,6 @@
       "left": 336,
       "attrs": { "text": "Até 3,3V" }
     },
-    {
-      "type": "wokwi-text",
-      "id": "text3",
-      "top": -19.2,
-      "left": -134.4,
-      "attrs": { "text": "PB B" }
-    },
     { "type": "wokwi-neopixel", "id": "rgb1", "top": 92.5, "left": -97, "attrs": {} },
     { "type": "wokwi-neopixel", "id": "rgb2", "top": 92.5, "left": -154.6, "attrs": {} },
     { "type": "wokwi-neopixel", "id": "rgb3", "top": 92.5, "left": -212.2, "attrs": {} },
@@ -202,11 +195,12 @@
     [ "rgb23:VSS", "gnd6:GND", "green", [ "v0" ] ],
     [ "rgb24:VSS", "gnd6:GND", "green", [ "v0" ] ],
     [ "rgb25:VSS", "gnd6:GND", "green", [ "v0" ] ],
+    [ "rgb1:DIN", "pico:GP7", "green", [ "h0" ] ],
     [ "r1:1", "bb1:11b.i", "", [ "$bb" ] ],
     [ "r1:2", "bb1:17b.i", "", [ "$bb" ] ],
     [ "r2:1", "bb1:5b.h", "", [ "$bb" ] ],
     [ "r2:2", "bb1:11b.h", "", [ "$bb" ] ],
-    [ "rgb1:DIN", "pico:GP7", "green", [ "h0" ] ]
+    [ "pico:3V3_EN", "bb1:5b.j", "green", [ "h29.11", "v-28.8" ] ]
   ],
   "dependencies": {}
 }
