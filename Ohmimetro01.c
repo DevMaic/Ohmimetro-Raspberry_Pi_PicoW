@@ -1,11 +1,12 @@
 /*
- * Por: Wilton Lacerda Silva
+ * Por: Maic de Oliveira Santos
  *    Ohmímetro utilizando o ADC da BitDogLab
  *
  * 
  * Neste exemplo, utilizamos o ADC do RP2040 para medir a resistência de um resistor
  * desconhecido, utilizando um divisor de tensão com dois resistores.
  * O resistor conhecido é de 10k ohm e o desconhecido é o que queremos medir.
+ * Ao ler o valor da resistência, exibimos também o código de cores respectivo
  *
  */
 
@@ -34,22 +35,36 @@ float R_x = 0.0;           // Resistor desconhecido
 float ADC_VREF = 3.31;     // Tensão de referência do ADC
 int ADC_RESOLUTION = 4095; // Resolução do ADC (12 bits)
 
+// Vetor que contém os nomes e a ordem das cores do código de cores
 const char* resistor_colors[] = {
   "Preto", "Marrom", "Vermelho", "Laranja",
   "Amarelo", "Verde", "Azul", "Violeta",
   "Cinza", "Branco"
 };
+
+// Tipo definido para auxiliar na definição de cores RGB
 typedef struct {
   double r;
   double g;
   double b;
 } Pixel;
 
+// Vetor que representa a matriz de leds cada píxel tem seu valor RGB atrelado
+Pixel desenho[25] = { 
+  {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
+  {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
+  {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
+  {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
+  {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}
+};
+
+// Vetor que contém os valores RGB de cada uma das cores do código de cores
 Pixel resistorColors[10] = {
   {0.0, 0.0, 0.0}, {0.07, 0.03, 0.015}, {1.0, 0.0, 0.0}, {1.0, 0.31, 0.0}, {1.0, 0.78, 0.0},
   {0.0, 0.59, 0.0}, {0.0, 0.0, 0.78}, {0.63, 1.0, 1.0}, {0.39, 0.39, 0.39}, {0.0, 0.0, 0.0}
 };
 
+// Valores de resistores disponíveis na série E24
 const double E24[] = {
   10, 11, 12, 13, 15, 16, 18, 20,
   22, 24, 27, 30, 33, 36, 39, 43,
@@ -57,6 +72,7 @@ const double E24[] = {
 };
 const int E24_SIZE = 24;
 
+// Função para encontrar o resistor mais próximo do valor lido no ADC na série E24
 double findNearestResistor(double resistanceRead) {
   double nearestResistance = 0;
   double minDifference = 1000000;  // Um valor inicial bem alto
@@ -95,14 +111,6 @@ uint32_t matrix_rgb(double b, double r, double g)
   return (G << 24) | (R << 16) | (B << 8);
 }
 
-Pixel desenho[25] = {
-  {0.8, 0.3, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0},
-  {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
-  {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 1.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
-  {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 0.0, 0.0}, {0.0, 0.0, 0.0},
-  {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 0.0}
-};
-
 //rotina para acionar a matrix de leds - ws2812b
 void desenho_pio(uint32_t valor_led, PIO pio, uint sm) {
   for (int16_t i = 0; i < NUM_PIXELS; i++) {
@@ -115,35 +123,20 @@ void desenho_pio(uint32_t valor_led, PIO pio, uint sm) {
   }
 }
 
-void acende_led_unicor(int led_index, double r, double g, double b, uint32_t valor_led, PIO pio, uint sm) {
-  for (int16_t i = 0; i < NUM_PIXELS; i++) {
-    if (i == led_index) {
-      // Se for o LED que queremos, acende com as cores passadas
-      valor_led = matrix_rgb(b, r, g);
-    } 
-    // else {
-    //   // Os outros ficam apagados (0.0)
-    //   valor_led = matrix_rgb(0.0, 0.0, 0.0);
-    // }
-    pio_sm_put_blocking(pio, sm, valor_led);
-  }
-}
-
+// Modifica a cor de píxels individuais na matriz desenho que representa a matriz de LEDs
 void set_pixel_color(int led_index, double r, double g, double b) {
-    if (led_index >= 0 && led_index < NUM_PIXELS) {
-        desenho[led_index].r = r;
-        desenho[led_index].g = g;
-        desenho[led_index].b = b;
-    }
+  if (led_index >= 0 && led_index < NUM_PIXELS) {
+    desenho[led_index].r = r;
+    desenho[led_index].g = g;
+    desenho[led_index].b = b;
+  }
 }
 
 int main() {
-  for (int i = 0; i < NUM_PIXELS; i++) {
-    desenho[i].r = 0.0;
-    desenho[i].g = 0.0;
-    desenho[i].b = 0.0;
-  }
+  stdio_init_all(); // Inicializa a comunicação serial
+
   uint32_t valor_led; // Variável para armazenar o valor do LED
+  
   PIO pio = pio0;
   set_sys_clock_khz(128000, false);
   //configurações da PIO
@@ -157,10 +150,6 @@ int main() {
   gpio_pull_up(botaoB);
   gpio_set_irq_enabled_with_callback(botaoB, GPIO_IRQ_EDGE_FALL, true, &gpio_irq_handler);
   // Aqui termina o trecho para modo BOOTSEL com botão B
-
-  gpio_init(Botao_A);
-  gpio_set_dir(Botao_A, GPIO_IN);
-  gpio_pull_up(Botao_A);
 
   // I2C Initialisation. Using it at 400Khz.
   i2c_init(I2C_PORT, 400 * 1000);
@@ -181,7 +170,6 @@ int main() {
   adc_init();
   adc_gpio_init(ADC_PIN); // GPIO 28 como entrada analógica
 
-  float tensao;
   char str_x[5]; // Buffer para armazenar a string
   char str_y[5]; // Buffer para armazenar a string
 
@@ -190,7 +178,7 @@ int main() {
     adc_select_input(2); // Seleciona o ADC do pino 28 como entrada analógica
 
     float soma = 0.0f;
-    for (int i = 0; i < 500; i++) {
+    for(int i = 0; i < 500; i++) {
       soma += adc_read();
       sleep_ms(1);
     }
@@ -200,21 +188,21 @@ int main() {
     R_x = (R_conhecido * media) / (ADC_RESOLUTION - media);
     double aux = R_x; // Armazena o valor de R_x para comparação
     aux = findNearestResistor(aux); // Encontra o resistor mais próximo
+
     int magnitude; // Calcula a magnitude do resistor
     for(magnitude=0;aux>=100; magnitude++) {
       aux = aux / 10; // Divide por 10 até que o valor seja menor que 100
     }
-    printf("%d %d\n", (int)aux/10, ((int)aux)%10);
+    printf("%d %d %d\n", (int)aux/10, ((int)aux)%10, magnitude);
 
-    set_pixel_color(0, resistorColors[(int)aux/10].r, resistorColors[(int)aux/10].g, resistorColors[(int)aux/10].b);
-    set_pixel_color(1, resistorColors[(int)aux%10].r, resistorColors[(int)aux%10].g, resistorColors[(int)aux%10].b);
-    set_pixel_color(2, resistorColors[magnitude].r, resistorColors[magnitude].g, resistorColors[magnitude].b);
+    set_pixel_color(11, resistorColors[(int)aux/10].r, resistorColors[(int)aux/10].g, resistorColors[(int)aux/10].b);
+    set_pixel_color(12, resistorColors[(int)aux%10].r, resistorColors[(int)aux%10].g, resistorColors[(int)aux%10].b);
+    set_pixel_color(13, resistorColors[magnitude].r, resistorColors[magnitude].g, resistorColors[magnitude].b);
     desenho_pio(valor_led, pio, sm);
 
     sprintf(str_x, "%1.0f", media); // Converte o inteiro em string
     sprintf(str_y, "%1.0f", R_x);   // Converte o float em string
 
-    // cor = !cor;
     //  Atualiza o conteúdo do display com animações
     ssd1306_fill(&ssd, !cor);                          // Limpa o display
     ssd1306_rect(&ssd, 3, 3, 122, 60, cor, !cor);      // Desenha um retângulo
@@ -229,10 +217,6 @@ int main() {
     ssd1306_rect(&ssd, 7, 60, 10, 19, cor, cor);      // Desenha um retângulo
     ssd1306_rect(&ssd, 7, 90, 10, 19, cor, cor);      // Desenha um retângulo
 
-    // ssd1306_draw_string(&ssd, "R", 33, 13); // Desenha uma string
-    // ssd1306_draw_string(&ssd, "G", 48, 13); // Desenha uma string
-    // ssd1306_draw_string(&ssd, "B", 63, 13); // Desenha uma string
-
     ssd1306_line(&ssd, 3, 37, 123, 37, cor);           // Desenha uma linha
     ssd1306_draw_string(&ssd, "", 8, 6); // Desenha uma string
     ssd1306_draw_string(&ssd, "", 20, 16);  // Desenha uma string
@@ -245,7 +229,7 @@ int main() {
     ssd1306_send_data(&ssd);                           // Atualiza o display
     sleep_ms(700);
 
-    // Atualiza o conteúdo do display com cores do resistor lido
+    // Atualiza o conteúdo do display com as cores do resistor lido
     ssd1306_fill(&ssd, !cor);
     ssd1306_draw_string(&ssd, "Resistor:", 8, 6);
     ssd1306_draw_string(&ssd, resistor_colors[(int)aux/10], 8, 16);
